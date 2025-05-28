@@ -3,4 +3,6 @@
 paste command to play :
 ```
 java -jar java-strike.jar
+
 ```
+________________________
