@@ -137,12 +137,15 @@ public class Game implements Runnable {
                 server.getUserBullets().remove(j--); //check if bullet is out of frame
                 continue;
             }
+            boolean hitObstacle = false;
             for (int i = 0; i < obstacles.size(); i++) {
                 if (obstacles.get(i).collides(server.getUserBullets().get(j))) {
                     server.getUserBullets().remove(j--);
-                    continue;
+                    hitObstacle = true;
+                    break;
                 }
             }
+            if (hitObstacle) continue;
 
         }
     }
