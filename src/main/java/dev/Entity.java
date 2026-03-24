@@ -39,12 +39,13 @@ public abstract class Entity {
     }
 
     public boolean collides(Entity other) {
-        boolean c1 = this.posX > other.getPosX();
-        boolean c2 = this.posX < other.getPosX() + other.getWidth();
-        boolean c3 = this.posY > other.getPosY();
-        boolean c4 = this.posY < other.getPosY() + other.getHeight();
-        boolean collision = c1 && c2 && c3 && c4;
-        if (collision){
+        // Full AABB overlap check (fixes bullets passing through obstacles)
+        boolean overlapX = this.posX < other.getPosX() + other.getWidth()
+                        && this.posX + this.width > other.getPosX();
+        boolean overlapY = this.posY < other.getPosY() + other.getHeight()
+                        && this.posY + this.height > other.getPosY();
+        boolean collision = overlapX && overlapY;
+        if (collision) {
             System.out.println("collision");
         }
         return collision;
