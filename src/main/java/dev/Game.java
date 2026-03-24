@@ -40,6 +40,7 @@ public class Game implements Runnable {
 
     private static Game instance = null;
     private List<Obstacle> obstacles = new ArrayList<>();
+    private List<MovingObstacle> movingObstacles = new ArrayList<>();
 
     public Game(String title, int width, int height) {
         this.width = width;
@@ -82,8 +83,46 @@ public class Game implements Runnable {
     }
 
     private void addObstacles() {
-        Obstacle o1 = new Obstacle((float) Launcher.width/2, (float) 0, (float) 10, Launcher.height/2);
-        obstacles.add(o1);
+        int W = Launcher.width;
+        int H = Launcher.height;
+
+        // --- Static obstacles ---
+        // Centre vertical wall with a gap in the middle
+        obstacles.add(new Obstacle(W / 2f - 5, 0,              15, H / 3f));
+        obstacles.add(new Obstacle(W / 2f - 5, H * 2 / 3f,    15, H / 3f));
+
+        // Left side horizontal cover
+        obstacles.add(new Obstacle(W * 0.15f, H * 0.3f,  120, 15));
+        obstacles.add(new Obstacle(W * 0.15f, H * 0.65f, 120, 15));
+
+        // Right side horizontal cover
+        obstacles.add(new Obstacle(W * 0.72f, H * 0.3f,  120, 15));
+        obstacles.add(new Obstacle(W * 0.72f, H * 0.65f, 120, 15));
+
+        // Corner boxes
+        obstacles.add(new Obstacle(W * 0.05f, H * 0.05f, 50, 50));
+        obstacles.add(new Obstacle(W * 0.87f, H * 0.05f, 50, 50));
+        obstacles.add(new Obstacle(W * 0.05f, H * 0.87f, 50, 50));
+        obstacles.add(new Obstacle(W * 0.87f, H * 0.87f, 50, 50));
+
+        // --- Moving obstacles ---
+        // Horizontal patrol across the centre gap
+        movingObstacles.add(new MovingObstacle(
+                W / 2f - 30, H * 0.45f, 60, 15,
+                1.5f, 0,
+                W * 0.3f, W * 0.7f, 0, H));
+
+        // Vertical patrol on the left lane
+        movingObstacles.add(new MovingObstacle(
+                W * 0.35f, H * 0.2f, 15, 60,
+                0, 1.2f,
+                0, W, H * 0.1f, H * 0.9f));
+
+        // Vertical patrol on the right lane
+        movingObstacles.add(new MovingObstacle(
+                W * 0.62f, H * 0.55f, 15, 60,
+                0, -1.2f,
+                0, W, H * 0.1f, H * 0.9f));
     }
 
     private void tick() {
@@ -101,6 +140,11 @@ public class Game implements Runnable {
             }
         }
 
+
+        // Tick moving obstacles every frame (client-side deterministic)
+        for (MovingObstacle mo : movingObstacles) {
+            mo.tick();
+        }
 
         if (isServer) {
             //tjekker om der er nogle der er blevet ramt.
@@ -146,6 +190,14 @@ public class Game implements Runnable {
                 }
             }
             if (hitObstacle) continue;
+            for (int i = 0; i < movingObstacles.size(); i++) {
+                if (movingObstacles.get(i).collides(server.getUserBullets().get(j))) {
+                    server.getUserBullets().remove(j--);
+                    hitObstacle = true;
+                    break;
+                }
+            }
+            if (hitObstacle) continue;
 
         }
     }
@@ -185,9 +237,16 @@ public class Game implements Runnable {
             }
         }
 
+        g.setColor(Color.DARK_GRAY);
         for (int i = 0; i < obstacles.size(); i++) {
-            g.fillRect((int) obstacles.get(i).getPosX(), (int) obstacles.get(i).getPosY(), (int)obstacles.get(i).getWidth(), (int) obstacles.get(i).getHeight());
+            g.fillRect((int) obstacles.get(i).getPosX(), (int) obstacles.get(i).getPosY(), (int) obstacles.get(i).getWidth(), (int) obstacles.get(i).getHeight());
         }
+
+        g.setColor(new Color(180, 60, 0)); // orange-red for moving obstacles
+        for (MovingObstacle mo : movingObstacles) {
+            g.fillRect((int) mo.getPosX(), (int) mo.getPosY(), (int) mo.getWidth(), (int) mo.getHeight());
+        }
+        g.setColor(Color.BLACK);
 
 
         Iterator<UserBullet> bulletIterator = client.getBulletQueue().iterator();
