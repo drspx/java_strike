@@ -37,7 +37,7 @@ public class Server {
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
         int index = 10;
         String username = "";
-        while (index < data.length && data[index] != 0) {
+        while (index < packet.getLength() && data[index] != 0) {
             username += (char) data[index++];
         }
 
@@ -52,9 +52,9 @@ public class Server {
         float x = ByteBuffer.wrap(data, 2, 4).getFloat();
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
 
-        int index = 12;
+        int index = 10;
         String username = "";
-        while (index < data.length) {
+        while (index < packet.getLength() && data[index] != 0) {
             username += (char) data[index++];
         }
 

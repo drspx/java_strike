@@ -254,19 +254,22 @@ public class Game implements Runnable {
             display.getCanvas().createBufferStrategy(3);
             return;
         }
-        Graphics g = bs.getDrawGraphics();
-        Graphics2D g2 = (Graphics2D) g;
-        g.clearRect(0, 0, display.getCanvas().getWidth(), display.getCanvas().getHeight());
+        Graphics2D g2 = (Graphics2D) bs.getDrawGraphics();
+        GameRenderer.enableAntialiasing(g2);
+
+        // Background
+        GameRenderer.drawBackground(g2, display.getCanvas().getWidth(), display.getCanvas().getHeight());
 
         if (gameMode == GameMode.BOMB_DEFUSAL && bombState != null) {
             GameRenderer.drawBombSite(g2, bombState, isServer, client);
         }
 
-        GameRenderer.drawLocalPlayer(g, player, myTeam, gameMode);
-        GameRenderer.drawAimLine(g, player, display.getMouse().point);
-        myTeam = GameRenderer.drawRemotePlayers(g, client, player, gameMode);
-        GameRenderer.drawObstacles(g, obstacles, movingObstacles);
-        GameRenderer.drawBullets(g, client.getBulletQueue());
+        GameRenderer.drawObstacles(g2, obstacles, movingObstacles);
+        GameRenderer.drawBullets(g2, client.getBulletQueue());
+        GameRenderer.drawLocalPlayer(g2, player, myTeam, gameMode, display.getMouse().point);
+        GameRenderer.drawAimLine(g2, player, display.getMouse().point);
+        myTeam = GameRenderer.drawRemotePlayers(g2, client, player, gameMode);
+
         GameRenderer.drawScoreboard(g2, client, gameMode);
 
         if (gameMode == GameMode.DEATHMATCH) {
@@ -280,11 +283,10 @@ public class Game implements Runnable {
                     tRoundWins, ctRoundWins, roundResultMessage, roundOverTime);
         }
 
-        g.setColor(Color.BLACK);
-        g.drawString("fps= " + fps, Launcher.width - 70, 10);
+        GameRenderer.drawFPS(g2, fps);
 
         bs.show();
-        g.dispose();
+        g2.dispose();
         Toolkit.getDefaultToolkit().sync();
     }
 
