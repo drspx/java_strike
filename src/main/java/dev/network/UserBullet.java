@@ -8,14 +8,12 @@ public class UserBullet extends Entity {
     public static int height = width;
 
     private final float speed = 5f;
-
+    int drawn = 0;
     private float posX;
     private float posY;
     private float vecX;
     private float vecY;
     private byte id;
-
-    int drawn = 0;
     private boolean isObsolete;
 
     public UserBullet(float posX, float posY) {
@@ -34,8 +32,8 @@ public class UserBullet extends Entity {
     }
 
     public void tick() {
-        setPosX(getPosX()+vecX*speed);
-        setPosY(getPosY()+vecY*speed);
+        setPosX(getPosX() + vecX * speed);
+        setPosY(getPosY() + vecY * speed);
     }
 
     public void hasBeenDrawn() {
@@ -46,12 +44,12 @@ public class UserBullet extends Entity {
         return drawn;
     }
 
-    public void setObsolete(boolean b) {
-        this.isObsolete = b;
-    }
-
     public boolean isObsolete() {
         return isObsolete;
+    }
+
+    public void setObsolete(boolean b) {
+        this.isObsolete = b;
     }
 
     public byte getId() {

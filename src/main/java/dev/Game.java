@@ -4,41 +4,53 @@ import dev.display.Display;
 import dev.network.Client;
 import dev.network.Server;
 import dev.network.User;
-import dev.network.UserBullet;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class Game implements Runnable {
 
     //Networking
     private static final int PORT = 4890;
-    private Server server;
-    private Client client;
-
-    private int fps;
-
-    private Display display;
+    private static final int MATCH_DURATION_SECONDS = 60;
+    // Spawn areas for bomb defusal
+    private static final float T_SPAWN_X = 50;
+    private static final float T_SPAWN_Y = 400;
+    private static final float CT_SPAWN_X = Launcher.width - 100;
+    private static final float CT_SPAWN_Y = 400;
+    private static Game instance = null;
     public int width, height;
     public String title;
-
+    int totalTicks = 0;
+    boolean isServer = true;
+    private Server server;
+    private Client client;
+    private int fps;
+    private Display display;
     private boolean running = false;
     private Thread thread;
-
-    private BufferStrategy bs;
-    private Graphics g;
-
     private Player player = new Player();
-
-    int totalTicks = 0;
-
-    boolean isServer = true;
-
-    private static Game instance = null;
+    // Deathmatch timer
+    private boolean matchStarted = false;
+    private long matchStartTime = 0;
+    private int remainingSeconds = MATCH_DURATION_SECONDS;
+    private boolean matchOver = false;
+    private String matchWinner = "";
+    private long matchOverTime = 0;
+    // Game mode
+    private GameMode gameMode = GameMode.DEATHMATCH;
+    // Bomb defusal state (server-side authoritative)
+    private BombState bombState;
+    private int tRoundWins = 0;
+    private int ctRoundWins = 0;
+    private boolean roundOver = false;
+    private long roundOverTime = 0;
+    private String roundResultMessage = "";
+    private boolean bombRoundStarted = false;
+    private byte myTeam = -1;
     private List<Obstacle> obstacles = new ArrayList<>();
     private List<MovingObstacle> movingObstacles = new ArrayList<>();
 
@@ -64,11 +76,9 @@ public class Game implements Runnable {
             client = new Client(hostname, PORT);
         }
         client.start();
-
     }
 
     private void init() {
-        //TODO gør start menu'en mere avanceret og smart
         int result = JOptionPane.showConfirmDialog(null, "Host?", "Host or Join?", JOptionPane.YES_NO_CANCEL_OPTION);
         String host = null;
         if (result == JOptionPane.NO_OPTION) {
@@ -77,52 +87,35 @@ public class Game implements Runnable {
         }
         if (result == JOptionPane.CANCEL_OPTION) System.exit(0);
 
-        addObstacles();
+        if (isServer) {
+            String[] modes = {"Deathmatch", "Bomb Defusal"};
+            int modeChoice = JOptionPane.showOptionDialog(null, "Select Game Mode", "Game Mode",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, modes, modes[0]);
+            if (modeChoice == 1) {
+                gameMode = GameMode.BOMB_DEFUSAL;
+            }
+        }
+
+        if (gameMode == GameMode.BOMB_DEFUSAL) {
+            MapBuilder.buildBombDefusalMap(obstacles);
+            bombState = MapBuilder.createBombSite();
+        } else {
+            MapBuilder.buildDeathmatchMap(obstacles, movingObstacles);
+        }
+
         netInit(host);
+
+        if (isServer && gameMode == GameMode.BOMB_DEFUSAL) {
+            server.setBombActionListener((playerId, action) -> {
+                if (action == 0) {
+                    GameLogic.handlePlantRequest(playerId, server, bombState, roundOver);
+                } else if (action == 1) {
+                    GameLogic.handleDefuseRequest(playerId, server, bombState, roundOver);
+                }
+            });
+        }
+
         display = new Display(title, width, height);
-    }
-
-    private void addObstacles() {
-        int W = Launcher.width;
-        int H = Launcher.height;
-
-        // --- Static obstacles ---
-        // Centre vertical wall with a gap in the middle
-        obstacles.add(new Obstacle(W / 2f - 5, 0,              15, H / 3f));
-        obstacles.add(new Obstacle(W / 2f - 5, H * 2 / 3f,    15, H / 3f));
-
-        // Left side horizontal cover
-        obstacles.add(new Obstacle(W * 0.15f, H * 0.3f,  120, 15));
-        obstacles.add(new Obstacle(W * 0.15f, H * 0.65f, 120, 15));
-
-        // Right side horizontal cover
-        obstacles.add(new Obstacle(W * 0.72f, H * 0.3f,  120, 15));
-        obstacles.add(new Obstacle(W * 0.72f, H * 0.65f, 120, 15));
-
-        // Corner boxes
-        obstacles.add(new Obstacle(W * 0.05f, H * 0.05f, 50, 50));
-        obstacles.add(new Obstacle(W * 0.87f, H * 0.05f, 50, 50));
-        obstacles.add(new Obstacle(W * 0.05f, H * 0.87f, 50, 50));
-        obstacles.add(new Obstacle(W * 0.87f, H * 0.87f, 50, 50));
-
-        // --- Moving obstacles ---
-        // Horizontal patrol across the centre gap
-        movingObstacles.add(new MovingObstacle(
-                W / 2f - 30, H * 0.45f, 60, 15,
-                1.5f, 0,
-                W * 0.3f, W * 0.7f, 0, H));
-
-        // Vertical patrol on the left lane
-        movingObstacles.add(new MovingObstacle(
-                W * 0.35f, H * 0.2f, 15, 60,
-                0, 1.2f,
-                0, W, H * 0.1f, H * 0.9f));
-
-        // Vertical patrol on the right lane
-        movingObstacles.add(new MovingObstacle(
-                W * 0.62f, H * 0.55f, 15, 60,
-                0, -1.2f,
-                0, W, H * 0.1f, H * 0.9f));
     }
 
     private void tick() {
@@ -132,33 +125,35 @@ public class Game implements Runnable {
             if (display.getKeyboard().down) player.incrementPosY(Player.speed);
             if (display.getKeyboard().left) player.incrementPosX(-Player.speed);
             if (display.getKeyboard().right) player.incrementPosX(Player.speed);
-            //player shoots
             if (display.getMouse().leftClick) {
                 display.getMouse().leftClick = false;
                 Bullet b = new Bullet(player, display.getMouse().point.x, display.getMouse().point.y);
                 client.sendBullet(b);
             }
+            if (display.getKeyboard().interact && gameMode == GameMode.BOMB_DEFUSAL) {
+                display.getKeyboard().interact = false;
+                User me = client.getUsers().get(client.getMyId());
+                if (me != null) {
+                    myTeam = me.team;
+                    client.sendBombAction(myTeam == 0 ? 0 : 1);
+                }
+            }
         }
 
-
-        // Tick moving obstacles every frame (client-side deterministic)
         for (MovingObstacle mo : movingObstacles) {
             mo.tick();
         }
 
         if (isServer) {
-            //tjekker om der er nogle der er blevet ramt.
-            //samt beregner lidt flere punkter end der bliver regnet med i ticks for præcision
             for (int i = 1; i < 5; i++) {
-
-                checkObjectCollision();
-
+                GameLogic.checkObjectCollision(server, obstacles, movingObstacles);
             }
+            GameLogic.checkMovingObstaclePlayerCollision(movingObstacles, server);
             server.broadCastBullets();
             server.tick();
-            if (display.getKeyboard().restart) {
-                server.restartGame();
-            }
+
+            tickDeathmatchTimer();
+            tickBombDefusalMode();
         }
 
         totalTicks++;
@@ -166,126 +161,131 @@ public class Game implements Runnable {
         client.tick();
     }
 
-    private void checkObjectCollision() {
-        for (int j = 0; j < server.getUserBullets().size(); j++) { //check if users are hit
-            for (User user : server.getUsers()) {
-                if (user.getId() == server.getUserBullets().get(j).getId()) continue;
+    private void tickDeathmatchTimer() {
+        if (!matchStarted && server.getClientCount() >= 2) {
+            matchStarted = true;
+            matchStartTime = System.currentTimeMillis();
+            matchOver = false;
+        }
+        if (matchStarted && !matchOver) {
+            long elapsed = (System.currentTimeMillis() - matchStartTime) / 1000;
+            remainingSeconds = Math.max(0, MATCH_DURATION_SECONDS - (int) elapsed);
+            if (remainingSeconds <= 0) {
+                matchOver = true;
+                matchOverTime = System.currentTimeMillis();
+                matchWinner = GameLogic.findMatchWinner(server);
+            }
+        }
+        if (matchOver && System.currentTimeMillis() - matchOverTime > 5000) {
+            server.restartGame();
+            matchStarted = false;
+            matchOver = false;
+            remainingSeconds = MATCH_DURATION_SECONDS;
+            matchWinner = "";
+            for (User u : server.getUsers()) {
+                u.kills = 0;
+                u.deaths = 0;
+            }
+        }
+        server.broadcastTime(remainingSeconds, matchOver);
 
-                if (server.getUserBullets().get(j).collides(user)) {
-                    System.out.println(server.getUserNameFromId(server.getUserBullets().get(j).getId()) + " hit " + user.getUsername());
-                    user.isDead = true;
-                }
-            }
-            server.getUserBullets().get(j).tick();
-            if (server.getUserBullets().get(j).isOutOfFrame()) {
-                server.getUserBullets().remove(j--); //check if bullet is out of frame
-                continue;
-            }
-            boolean hitObstacle = false;
-            for (int i = 0; i < obstacles.size(); i++) {
-                if (obstacles.get(i).collides(server.getUserBullets().get(j))) {
-                    server.getUserBullets().remove(j--);
-                    hitObstacle = true;
-                    break;
-                }
-            }
-            if (hitObstacle) continue;
-            for (int i = 0; i < movingObstacles.size(); i++) {
-                if (movingObstacles.get(i).collides(server.getUserBullets().get(j))) {
-                    server.getUserBullets().remove(j--);
-                    hitObstacle = true;
-                    break;
-                }
-            }
-            if (hitObstacle) continue;
-
+        if (display.getKeyboard().restart) {
+            server.restartGame();
+            matchStarted = false;
+            matchOver = false;
+            remainingSeconds = MATCH_DURATION_SECONDS;
+            matchWinner = "";
         }
     }
 
+    private void tickBombDefusalMode() {
+        if (gameMode != GameMode.BOMB_DEFUSAL) return;
+
+        if (!bombRoundStarted && server.getClientCount() >= 2) {
+            bombRoundStarted = true;
+            startNewBombRound();
+        }
+        if (!bombRoundStarted || roundOver) {
+            if (roundOver && System.currentTimeMillis() - roundOverTime > 5000) {
+                startNewBombRound();
+            }
+            return;
+        }
+
+        byte winner = GameLogic.tickBombDefusal(bombState, server);
+        if (winner == 0) {
+            endBombRound((byte) 0, "Terrorists Win!");
+        } else if (winner == 1) {
+            endBombRound((byte) 1, "Counter-Terrorists Win!");
+        }
+
+        server.broadcastBombState(bombState);
+    }
+
+    private void startNewBombRound() {
+        roundOver = false;
+        roundResultMessage = "";
+        GameLogic.resetRound(server, bombState, T_SPAWN_X, T_SPAWN_Y, CT_SPAWN_X, CT_SPAWN_Y);
+    }
+
+    private void endBombRound(byte winningTeam, String message) {
+        roundOver = true;
+        roundOverTime = System.currentTimeMillis();
+        roundResultMessage = message;
+        if (winningTeam == 0) tRoundWins++;
+        else ctRoundWins++;
+        server.broadcastRoundResult(winningTeam, tRoundWins, ctRoundWins);
+    }
+
     private void render() {
-        bs = display.getCanvas().getBufferStrategy();
+        BufferStrategy bs = display.getCanvas().getBufferStrategy();
         if (bs == null) {
             display.getCanvas().createBufferStrategy(3);
             return;
         }
-        g = bs.getDrawGraphics();
-        g.clearRect(0, 0, display.getCanvas().getWidth(), display.getCanvas().getHeight());
+        Graphics2D g2 = (Graphics2D) bs.getDrawGraphics();
+        GameRenderer.enableAntialiasing(g2);
 
-        if (!player.isDead) {
-            g.fillRect((int) player.getPosX(), (int) player.getPosY(), 10, 10);
-            g.setColor(Color.BLACK);
+        // Background
+        GameRenderer.drawBackground(g2, display.getCanvas().getWidth(), display.getCanvas().getHeight());
+
+        if (gameMode == GameMode.BOMB_DEFUSAL && bombState != null) {
+            GameRenderer.drawBombSite(g2, bombState, isServer, client);
         }
 
-        g.drawLine((int) (player.getPosX() + player.getWidth() / 2),
-                (int) (player.getPosY()  + player.getHeight() / 2),
-                display.getMouse().point.x, display.getMouse().point.y);
+        GameRenderer.drawObstacles(g2, obstacles, movingObstacles);
+        GameRenderer.drawBullets(g2, client.getBulletQueue());
+        GameRenderer.drawLocalPlayer(g2, player, myTeam, gameMode, display.getMouse().point);
+        GameRenderer.drawAimLine(g2, player, display.getMouse().point);
+        myTeam = GameRenderer.drawRemotePlayers(g2, client, player, gameMode);
 
-        for (User user : client.getUsers().values()) {
-            if (!new Byte(user.getId()).equals(client.getMyId())) {
-                if (!user.isDead) {
-                    g.fillRect((int) user.getPosX(), (int) user.getPosY(), (int) player.getWidth(), (int) player.getHeight());
-                    g.drawString(user.getUsername(), (int) user.getPosX(), (int) user.getPosY());
-                } else {
-                    drawDeadUser(user);
-                }
-            } else {
-                if (user.isDead) {
-                    player.isDead = true;
-                    drawDeadUser(user);
-                }
+        GameRenderer.drawScoreboard(g2, client, gameMode);
 
-            }
+        if (gameMode == GameMode.DEATHMATCH) {
+            int seconds = isServer ? remainingSeconds : client.getRemainingSeconds();
+            boolean over = isServer ? matchOver : client.isMatchOver();
+            GameRenderer.drawTimer(g2, seconds, over, matchWinner);
         }
 
-        g.setColor(Color.DARK_GRAY);
-        for (int i = 0; i < obstacles.size(); i++) {
-            g.fillRect((int) obstacles.get(i).getPosX(), (int) obstacles.get(i).getPosY(), (int) obstacles.get(i).getWidth(), (int) obstacles.get(i).getHeight());
+        if (gameMode == GameMode.BOMB_DEFUSAL) {
+            GameRenderer.drawBombHUD(g2, isServer, bombState, client, myTeam,
+                    tRoundWins, ctRoundWins, roundResultMessage, roundOverTime);
         }
 
-        g.setColor(new Color(180, 60, 0)); // orange-red for moving obstacles
-        for (MovingObstacle mo : movingObstacles) {
-            g.fillRect((int) mo.getPosX(), (int) mo.getPosY(), (int) mo.getWidth(), (int) mo.getHeight());
-        }
-        g.setColor(Color.BLACK);
-
-
-        Iterator<UserBullet> bulletIterator = client.getBulletQueue().iterator();
-        g.setColor(Color.RED);
-        while (bulletIterator.hasNext()) {
-            UserBullet b = bulletIterator.next();
-            b.hasBeenDrawn();
-            g.fillOval((int) b.getPosX(), (int) b.getPosY(), UserBullet.width, UserBullet.height);
-            bulletIterator.remove();
-
-        }
-
-
-        g.drawString("fps= " + fps, Launcher.width - 70, 10);
+        GameRenderer.drawFPS(g2, fps);
 
         bs.show();
-        g.dispose();
+        g2.dispose();
         Toolkit.getDefaultToolkit().sync();
-        //System.out.println(client.getUsers().keySet().size());
-
-    }
-
-    private void drawDeadUser(User user) {
-        int x = (int) user.getPosX();
-        int y = (int) user.getPosY();
-        int factor = 10;
-        g.drawPolygon(new int[]{x - factor, x + factor, x, x - factor, x + factor}
-                , new int[]{y - factor, y + factor, y, y + factor, y - factor}, 5);
     }
 
     public void run() {
         init();
 
         int tps = 60;
-
         long lastTime = System.nanoTime();
         final double ns = 1000000000.0 / (double) tps;
         double delta = 0;
-
         long fpsLastTime = System.nanoTime();
 
         while (running) {
@@ -304,17 +304,14 @@ public class Game implements Runnable {
     }
 
     public synchronized void start() {
-        if (running)
-            return;
+        if (running) return;
         running = true;
         thread = new Thread(this);
         thread.start();
     }
 
     public synchronized void stop() {
-        if (!running)
-            return;
-
+        if (!running) return;
         running = false;
         try {
             thread.join();

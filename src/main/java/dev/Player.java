@@ -1,21 +1,18 @@
 package dev;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Player extends Entity {
 
     public static final int speed = 3;
-
+    public static final float width = 10;
+    public static final float height = 10;
     public boolean isDead = false;
     private String name;
     private List<Bullet> bullets = new ArrayList<>();
 
-    public static final float width = 10;
-    public static final float height = 10;
-
-    public Player(float x, float y){
+    public Player(float x, float y) {
         super(x, y, width, height);
     }
 
@@ -34,7 +31,7 @@ public class Player extends Entity {
             this.setPosX(Launcher.width - 20);
             return;
         }
-        this.setPosX(this.getPosX()+posX);
+        this.setPosX(this.getPosX() + posX);
     }
 
     public void incrementPosY(float posY) {
@@ -47,7 +44,7 @@ public class Player extends Entity {
             this.setPosY(Launcher.height - 20);
             return;
         }
-        this.setPosY(this.getPosY()+posY);
+        this.setPosY(this.getPosY() + posY);
     }
 
 }

@@ -1,11 +1,16 @@
 package dev.network;
 
+import dev.BombState;
 import dev.Game;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static dev.network.NetValues.TIMEOUT;
@@ -16,6 +21,8 @@ public class Server {
     private List<User> clients;
     private byte idIncrementer;
     private List<UserBullet> userBullets = new CopyOnWriteArrayList<>();
+    // Bomb action listener — Game sets this to handle plant/defuse requests
+    private BombActionListener bombActionListener;
 
     public Server(int udpPort) {
         idIncrementer = (byte) (10 + (Math.random() * 20.0));
@@ -35,7 +42,7 @@ public class Server {
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
         int index = 10;
         String username = "";
-        while (index < data.length && data[index] != 0) {
+        while (index < packet.getLength() && data[index] != 0) {
             username += (char) data[index++];
         }
 
@@ -50,9 +57,9 @@ public class Server {
         float x = ByteBuffer.wrap(data, 2, 4).getFloat();
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
 
-        int index = 12;
+        int index = 10;
         String username = "";
-        while (index < data.length) {
+        while (index < packet.getLength() && data[index] != 0) {
             username += (char) data[index++];
         }
 
@@ -95,7 +102,8 @@ public class Server {
     }
 
     private void broadcastPosition(User u, float x, float y, String name) {
-        byte[] data = new byte[1 + 1 + 4 + 4 + 2 + name.getBytes().length];
+        // Extended format: [1][id][x:4][y:4][isDead][kills:2][deaths:2][team][name...]
+        byte[] data = new byte[1 + 1 + 4 + 4 + 1 + 2 + 2 + 1 + name.getBytes().length];
 
         data[0] = 1; //Position update
         data[1] = u.getId();
@@ -105,8 +113,14 @@ public class Server {
             data[2 + i] = xArr[i];
             data[6 + i] = yArr[i];
         }
-        data[11] = (byte) (u.isDead ? 1 : 0);
-        int index = 12;
+        data[10] = (byte) (u.isDead ? 1 : 0);
+        // Kills and deaths as short (2 bytes each)
+        data[11] = (byte) ((u.kills >> 8) & 0xFF);
+        data[12] = (byte) (u.kills & 0xFF);
+        data[13] = (byte) ((u.deaths >> 8) & 0xFF);
+        data[14] = (byte) (u.deaths & 0xFF);
+        data[15] = u.team;
+        int index = 16;
         for (int i = 0; i < name.getBytes().length; i++) {
             data[index++] = name.getBytes()[i];
         }
@@ -162,6 +176,9 @@ public class Server {
                             case 4:
                                 sendId(packet);
                                 break;
+                            case 11:
+                                handleBombAction(packet);
+                                break;
 
                         }
                         if (!clientAlreadyExist) newUser(packet);
@@ -211,6 +228,24 @@ public class Server {
         broadCastBullets();
     }
 
+    public void setBombActionListener(BombActionListener listener) {
+        this.bombActionListener = listener;
+    }
+
+    private void handleBombAction(DatagramPacket packet) {
+        byte[] data = packet.getData();
+        int action = data[1]; // 0=plant, 1=defuse
+        // Find which user sent this
+        for (User u : clients) {
+            if (u.getAddress().equals(packet.getAddress()) && u.getPort() == packet.getPort()) {
+                if (bombActionListener != null) {
+                    bombActionListener.onBombAction(u.getId(), action);
+                }
+                break;
+            }
+        }
+    }
+
     private void updateBullets(DatagramPacket packet) {
         byte[] data = packet.getData();
         float x = ByteBuffer.wrap(data, 2, 4).getFloat();
@@ -219,7 +254,6 @@ public class Server {
         //broadCastBullets();
 
     }
-
 
     public List<UserBullet> getUserBullets() {
         return userBullets;
@@ -249,9 +283,87 @@ public class Server {
         return clients;
     }
 
-
     public void tick() {
         cleanUp();
+    }
+
+    public int getClientCount() {
+        return clients.size();
+    }
+
+    public void assignTeams() {
+        List<User> shuffled = new ArrayList<>(clients);
+        Collections.shuffle(shuffled);
+        for (int i = 0; i < shuffled.size(); i++) {
+            shuffled.get(i).team = (byte) (i % 2); // 0=T, 1=CT alternating
+        }
+    }
+
+    public void assignBombCarrier() {
+        for (User u : clients) {
+            u.hasBomb = false;
+        }
+        // Pick random T player
+        List<User> terrorists = new ArrayList<>();
+        for (User u : clients) {
+            if (u.team == 0 && !u.isDead) terrorists.add(u);
+        }
+        if (!terrorists.isEmpty()) {
+            terrorists.get((int) (Math.random() * terrorists.size())).hasBomb = true;
+        }
+    }
+
+    public void broadcastBombState(BombState bomb) {
+        byte[] data = new byte[14];
+        data[0] = 9;
+        data[1] = (byte) bomb.getState();
+        byte[] bx = ByteBuffer.allocate(4).putFloat(bomb.getBombX()).array();
+        byte[] by = ByteBuffer.allocate(4).putFloat(bomb.getBombY()).array();
+        System.arraycopy(bx, 0, data, 2, 4);
+        System.arraycopy(by, 0, data, 6, 4);
+        int bombTime = bomb.getRemainingBombTime();
+        data[10] = (byte) ((bombTime >> 8) & 0xFF);
+        data[11] = (byte) (bombTime & 0xFF);
+        data[12] = (byte) bomb.getPlantProgress();
+        data[13] = (byte) bomb.getDefuseProgress();
+        for (User client : clients) {
+            try {
+                udpSocket.send(new DatagramPacket(data, data.length, client.getAddress(), client.getPort()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void broadcastRoundResult(byte winningTeam, int tWins, int ctWins) {
+        byte[] data = new byte[5];
+        data[0] = 12; // Round result packet
+        data[1] = winningTeam;
+        data[2] = (byte) tWins;
+        data[3] = (byte) ctWins;
+        for (User client : clients) {
+            try {
+                udpSocket.send(new DatagramPacket(data, data.length, client.getAddress(), client.getPort()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void broadcastTime(int remainingSeconds, boolean matchOver) {
+        byte[] data = new byte[4];
+        data[0] = 7; // Time update packet
+        data[1] = (byte) ((remainingSeconds >> 8) & 0xFF);
+        data[2] = (byte) (remainingSeconds & 0xFF);
+        data[3] = (byte) (matchOver ? 1 : 0);
+        for (User client : clients) {
+            DatagramPacket packet = new DatagramPacket(data, data.length, client.getAddress(), client.getPort());
+            try {
+                udpSocket.send(packet);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void restartGame() {
@@ -271,8 +383,12 @@ public class Server {
                 e.printStackTrace();
             }
         }
-        Game.getInstance().getDisplay().getKeyboard().restart=false;
+        Game.getInstance().getDisplay().getKeyboard().restart = false;
 
+    }
+
+    public interface BombActionListener {
+        void onBombAction(byte playerId, int action);
     }
 }
 

@@ -4,10 +4,13 @@ import dev.Entity;
 import dev.Player;
 
 import java.net.InetAddress;
-import java.net.SocketAddress;
 
 public class User extends Entity {
     public boolean isDead = false;
+    public int kills = 0;
+    public int deaths = 0;
+    public byte team = -1; // -1=none, 0=T, 1=CT
+    public boolean hasBomb = false;
     //Server side
     private InetAddress address;
     private int port;
@@ -19,8 +22,7 @@ public class User extends Entity {
     private long lastAlive;
 
 
-    public User(InetAddress address, String username, byte id, float x, float y)
-    {
+    public User(InetAddress address, String username, byte id, float x, float y) {
         super(x, y, Player.width, Player.height);
         this.address = address;
         this.username = username;
@@ -28,13 +30,11 @@ public class User extends Entity {
         lastAlive = System.currentTimeMillis();
     }
 
-    public void confirmAlive()
-    {
+    public void confirmAlive() {
         lastAlive = System.currentTimeMillis();
     }
 
-    public long lastConfirmationOfLife()
-    {
+    public long lastConfirmationOfLife() {
         return lastAlive;
     }
 
@@ -50,8 +50,7 @@ public class User extends Entity {
         return port;
     }
 
-    public void setPort(int port)
-    {
+    public void setPort(int port) {
         this.port = port;
     }
 
