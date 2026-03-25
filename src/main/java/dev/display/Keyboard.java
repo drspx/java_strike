@@ -6,7 +6,7 @@ import java.awt.event.KeyEvent;
 
 public class Keyboard extends KeyAdapter {
 
-    public boolean up, down, left, right, escape, botSpawn, restart;
+    public boolean up, down, left, right, escape, botSpawn, restart, interact;
 
     @Override
     public void keyPressed(KeyEvent k) {
@@ -31,6 +31,9 @@ public class Keyboard extends KeyAdapter {
         if (k.getKeyCode() == KeyEvent.VK_R) {
             restart = true;
         }
+        if (k.getKeyCode() == KeyEvent.VK_E) {
+            interact = true;
+        }
 
     }
 
@@ -53,6 +56,9 @@ public class Keyboard extends KeyAdapter {
         }
         if (k.getKeyCode() == KeyEvent.VK_R) {
             restart = false;
+        }
+        if (k.getKeyCode() == KeyEvent.VK_E) {
+            interact = false;
         }
 
     }

@@ -8,6 +8,10 @@ import java.net.SocketAddress;
 
 public class User extends Entity {
     public boolean isDead = false;
+    public int kills = 0;
+    public int deaths = 0;
+    public byte team = -1; // -1=none, 0=T, 1=CT
+    public boolean hasBomb = false;
     //Server side
     private InetAddress address;
     private int port;
