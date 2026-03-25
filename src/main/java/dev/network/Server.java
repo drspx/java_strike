@@ -2,12 +2,15 @@ package dev.network;
 
 import dev.BombState;
 import dev.Game;
-import dev.GameMode;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static dev.network.NetValues.TIMEOUT;
@@ -18,6 +21,8 @@ public class Server {
     private List<User> clients;
     private byte idIncrementer;
     private List<UserBullet> userBullets = new CopyOnWriteArrayList<>();
+    // Bomb action listener — Game sets this to handle plant/defuse requests
+    private BombActionListener bombActionListener;
 
     public Server(int udpPort) {
         idIncrementer = (byte) (10 + (Math.random() * 20.0));
@@ -223,15 +228,8 @@ public class Server {
         broadCastBullets();
     }
 
-    // Bomb action listener — Game sets this to handle plant/defuse requests
-    private BombActionListener bombActionListener;
-
     public void setBombActionListener(BombActionListener listener) {
         this.bombActionListener = listener;
-    }
-
-    public interface BombActionListener {
-        void onBombAction(byte playerId, int action);
     }
 
     private void handleBombAction(DatagramPacket packet) {
@@ -256,7 +254,6 @@ public class Server {
         //broadCastBullets();
 
     }
-
 
     public List<UserBullet> getUserBullets() {
         return userBullets;
@@ -285,7 +282,6 @@ public class Server {
     public List<User> getUsers() {
         return clients;
     }
-
 
     public void tick() {
         cleanUp();
@@ -387,8 +383,12 @@ public class Server {
                 e.printStackTrace();
             }
         }
-        Game.getInstance().getDisplay().getKeyboard().restart=false;
+        Game.getInstance().getDisplay().getKeyboard().restart = false;
 
+    }
+
+    public interface BombActionListener {
+        void onBombAction(byte playerId, int action);
     }
 }
 

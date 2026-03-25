@@ -8,10 +8,11 @@ import java.util.List;
 
 public final class GameLogic {
 
-    private GameLogic() {}
+    private GameLogic() {
+    }
 
     public static void checkObjectCollision(Server server, List<Obstacle> obstacles,
-                                             List<MovingObstacle> movingObstacles) {
+                                            List<MovingObstacle> movingObstacles) {
         List<UserBullet> bullets = server.getUserBullets();
         for (int j = 0; j < bullets.size(); j++) {
             UserBullet bullet = bullets.get(j);
@@ -138,8 +139,8 @@ public final class GameLogic {
     }
 
     public static void resetRound(Server server, BombState bombState,
-                                    float tSpawnX, float tSpawnY,
-                                    float ctSpawnX, float ctSpawnY) {
+                                  float tSpawnX, float tSpawnY,
+                                  float ctSpawnX, float ctSpawnY) {
         server.assignTeams();
         server.assignBombCarrier();
         for (User u : server.getUsers()) {
@@ -154,7 +155,10 @@ public final class GameLogic {
         }
         byte carrierId = 0;
         for (User u : server.getUsers()) {
-            if (u.hasBomb) { carrierId = u.getId(); break; }
+            if (u.hasBomb) {
+                carrierId = u.getId();
+                break;
+            }
         }
         bombState.reset(carrierId);
         server.getUserBullets().clear();

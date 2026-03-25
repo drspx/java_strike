@@ -15,36 +15,33 @@ public class Game implements Runnable {
 
     //Networking
     private static final int PORT = 4890;
-    private Server server;
-    private Client client;
-
-    private int fps;
-
-    private Display display;
+    private static final int MATCH_DURATION_SECONDS = 60;
+    // Spawn areas for bomb defusal
+    private static final float T_SPAWN_X = 50;
+    private static final float T_SPAWN_Y = 400;
+    private static final float CT_SPAWN_X = Launcher.width - 100;
+    private static final float CT_SPAWN_Y = 400;
+    private static Game instance = null;
     public int width, height;
     public String title;
-
+    int totalTicks = 0;
+    boolean isServer = true;
+    private Server server;
+    private Client client;
+    private int fps;
+    private Display display;
     private boolean running = false;
     private Thread thread;
-
     private Player player = new Player();
-
-    int totalTicks = 0;
-
-    boolean isServer = true;
-
     // Deathmatch timer
     private boolean matchStarted = false;
     private long matchStartTime = 0;
-    private static final int MATCH_DURATION_SECONDS = 60;
     private int remainingSeconds = MATCH_DURATION_SECONDS;
     private boolean matchOver = false;
     private String matchWinner = "";
     private long matchOverTime = 0;
-
     // Game mode
     private GameMode gameMode = GameMode.DEATHMATCH;
-
     // Bomb defusal state (server-side authoritative)
     private BombState bombState;
     private int tRoundWins = 0;
@@ -54,14 +51,6 @@ public class Game implements Runnable {
     private String roundResultMessage = "";
     private boolean bombRoundStarted = false;
     private byte myTeam = -1;
-
-    // Spawn areas for bomb defusal
-    private static final float T_SPAWN_X = 50;
-    private static final float T_SPAWN_Y = 400;
-    private static final float CT_SPAWN_X = Launcher.width - 100;
-    private static final float CT_SPAWN_Y = 400;
-
-    private static Game instance = null;
     private List<Obstacle> obstacles = new ArrayList<>();
     private List<MovingObstacle> movingObstacles = new ArrayList<>();
 
@@ -331,7 +320,15 @@ public class Game implements Runnable {
         }
     }
 
-    public Player getPlayer() { return player; }
-    public Client getClient() { return client; }
-    public Display getDisplay() { return display; }
+    public Player getPlayer() {
+        return player;
+    }
+
+    public Client getClient() {
+        return client;
+    }
+
+    public Display getDisplay() {
+        return display;
+    }
 }

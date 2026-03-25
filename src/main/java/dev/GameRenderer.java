@@ -13,16 +13,12 @@ import java.util.List;
 
 public final class GameRenderer {
 
-    private GameRenderer() {}
-
     // Player visual constants
     private static final int BODY_RADIUS = 8;
     private static final int GUN_LENGTH = 14;
-
     // Pre-cached colors — avoids per-frame allocations
     private static final Color BG_COLOR = new Color(30, 32, 36);
     private static final Color GRID_COLOR = new Color(45, 48, 54);
-
     private static final Color PLAYER_GREEN = new Color(50, 180, 80);
     private static final Color PLAYER_GRAY = new Color(60, 60, 65);
     private static final Color PLAYER_T_LOCAL = new Color(200, 150, 0);
@@ -34,23 +30,18 @@ public final class GameRenderer {
     private static final Color GUN_COLOR = new Color(80, 80, 90);
     private static final Color GUN_TIP = new Color(60, 60, 65);
     private static final Color GUN_SHADOW = new Color(0, 0, 0, 80);
-
     private static final Color AIM_LINE_COLOR = new Color(255, 255, 255, 50);
     private static final Color CROSSHAIR_COLOR = new Color(255, 255, 255, 140);
-
     private static final Color OBS_FILL = new Color(80, 85, 95);
     private static final Color OBS_BORDER = new Color(110, 115, 125);
     private static final Color OBS_SHADOW = new Color(0, 0, 0, 40);
     private static final Color MOB_FILL = new Color(200, 60, 10);
     private static final Color MOB_BORDER = new Color(255, 100, 30);
     private static final Color MOB_GLOW = new Color(255, 60, 0, 25);
-
     private static final Color BULLET_GLOW = new Color(255, 100, 20, 80);
     private static final Color BULLET_CORE = new Color(255, 220, 100);
-
     private static final Color DEAD_GLOW = new Color(200, 0, 0, 35);
     private static final Color DEAD_X = new Color(180, 30, 30);
-
     private static final Color NAME_SHADOW = new Color(0, 0, 0, 160);
     private static final Color HUD_BG = new Color(0, 0, 0, 150);
     private static final Color HUD_BG_DARK = new Color(0, 0, 0, 180);
@@ -63,7 +54,6 @@ public final class GameRenderer {
     private static final Color SCORE_CT = new Color(100, 160, 255);
     private static final Color CT_HUD = new Color(50, 120, 220);
     private static final Color FPS_COLOR = new Color(150, 150, 150);
-
     // Pre-cached fonts
     private static final Font FONT_NAME = new Font("SansSerif", Font.BOLD, 11);
     private static final Font FONT_SCOREBOARD_HEADER = new Font("Monospaced", Font.BOLD, 13);
@@ -77,7 +67,6 @@ public final class GameRenderer {
     private static final Font FONT_TEAM = new Font("Monospaced", Font.BOLD, 14);
     private static final Font FONT_PROGRESS = new Font("Monospaced", Font.BOLD, 12);
     private static final Font FONT_FPS = new Font("Monospaced", Font.PLAIN, 11);
-
     // Pre-cached strokes
     private static final BasicStroke STROKE_1 = new BasicStroke(1f);
     private static final BasicStroke STROKE_1_5 = new BasicStroke(1.5f);
@@ -87,10 +76,11 @@ public final class GameRenderer {
     private static final BasicStroke STROKE_GUN_SHADOW = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final float[] AIM_DASH = {4f, 6f};
     private static final BasicStroke STROKE_AIM = new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1f, AIM_DASH, 0f);
-
     // Reusable shape objects (not thread-safe but game is single-threaded render)
     private static final Ellipse2D.Float tmpEllipse = new Ellipse2D.Float();
     private static final Line2D.Float tmpLine = new Line2D.Float();
+    private GameRenderer() {
+    }
 
     public static void enableAntialiasing(Graphics2D g2) {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -108,7 +98,7 @@ public final class GameRenderer {
     // --- Player drawing ---
 
     public static void drawLocalPlayer(Graphics2D g2, Player player, byte myTeam,
-                                        GameMode gameMode, Point mousePoint) {
+                                       GameMode gameMode, Point mousePoint) {
         if (player.isDead) return;
         float cx = player.getPosX() + player.getWidth() / 2;
         float cy = player.getPosY() + player.getHeight() / 2;
@@ -167,7 +157,7 @@ public final class GameRenderer {
     }
 
     private static void drawPlayerFigure(Graphics2D g2, float cx, float cy,
-                                          double aimAngle, Color bodyColor, boolean isLocal) {
+                                         double aimAngle, Color bodyColor, boolean isLocal) {
         float cosA = (float) Math.cos(aimAngle);
         float sinA = (float) Math.sin(aimAngle);
 
@@ -208,7 +198,7 @@ public final class GameRenderer {
     // --- Obstacles ---
 
     public static void drawObstacles(Graphics2D g2, List<Obstacle> obstacles,
-                                      List<MovingObstacle> movingObstacles) {
+                                     List<MovingObstacle> movingObstacles) {
         for (Obstacle obs : obstacles) {
             int ox = (int) obs.getPosX(), oy = (int) obs.getPosY();
             int ow = (int) obs.getWidth(), oh = (int) obs.getHeight();
@@ -347,9 +337,9 @@ public final class GameRenderer {
     }
 
     public static void drawBombHUD(Graphics2D g2, boolean isServer, BombState bombState,
-                                    Client client, byte myTeam,
-                                    int tRoundWins, int ctRoundWins,
-                                    String roundResultMessage, long roundOverTime) {
+                                   Client client, byte myTeam,
+                                   int tRoundWins, int ctRoundWins,
+                                   String roundResultMessage, long roundOverTime) {
         int bState = isServer ? (bombState != null ? bombState.getState() : 0) : client.getBombState();
         int bombTimer = isServer ? (bombState != null ? bombState.getRemainingBombTime() : -1) : client.getBombTimer();
         int plantProg = isServer ? (bombState != null ? bombState.getPlantProgress() : 0) : client.getPlantProgress();

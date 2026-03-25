@@ -4,7 +4,8 @@ import java.util.List;
 
 public final class MapBuilder {
 
-    private MapBuilder() {}
+    private MapBuilder() {
+    }
 
     public static void buildDeathmatchMap(List<Obstacle> obstacles, List<MovingObstacle> movingObstacles) {
         int W = Launcher.width;
@@ -12,15 +13,15 @@ public final class MapBuilder {
 
         // --- Static obstacles ---
         // Centre vertical wall with a gap in the middle
-        obstacles.add(new Obstacle(W / 2f - 5, 0,              15, H / 3f));
-        obstacles.add(new Obstacle(W / 2f - 5, H * 2 / 3f,    15, H / 3f));
+        obstacles.add(new Obstacle(W / 2f - 5, 0, 15, H / 3f));
+        obstacles.add(new Obstacle(W / 2f - 5, H * 2 / 3f, 15, H / 3f));
 
         // Left side horizontal cover
-        obstacles.add(new Obstacle(W * 0.15f, H * 0.3f,  120, 15));
+        obstacles.add(new Obstacle(W * 0.15f, H * 0.3f, 120, 15));
         obstacles.add(new Obstacle(W * 0.15f, H * 0.65f, 120, 15));
 
         // Right side horizontal cover
-        obstacles.add(new Obstacle(W * 0.72f, H * 0.3f,  120, 15));
+        obstacles.add(new Obstacle(W * 0.72f, H * 0.3f, 120, 15));
         obstacles.add(new Obstacle(W * 0.72f, H * 0.65f, 120, 15));
 
         // Corner boxes

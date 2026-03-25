@@ -121,12 +121,35 @@ public class BombState {
         return 0;
     }
 
-    public int getState() { return state; }
-    public float getBombX() { return bombX; }
-    public float getBombY() { return bombY; }
-    public float getSiteX() { return siteX; }
-    public float getSiteY() { return siteY; }
-    public float getSiteW() { return siteW; }
-    public float getSiteH() { return siteH; }
-    public byte getCarrierPlayerId() { return carrierPlayerId; }
+    public int getState() {
+        return state;
+    }
+
+    public float getBombX() {
+        return bombX;
+    }
+
+    public float getBombY() {
+        return bombY;
+    }
+
+    public float getSiteX() {
+        return siteX;
+    }
+
+    public float getSiteY() {
+        return siteY;
+    }
+
+    public float getSiteW() {
+        return siteW;
+    }
+
+    public float getSiteH() {
+        return siteH;
+    }
+
+    public byte getCarrierPlayerId() {
+        return carrierPlayerId;
+    }
 }

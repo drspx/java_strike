@@ -16,38 +16,23 @@ import static dev.network.NetValues.TIMEOUT;
 public class Client {
 
     private byte myId = 0;
-
-    public byte getMyId() {
-        if (myId==0){
-            askId();
-            return 0;
-        }
-        return myId;
-    }
-
     private DatagramSocket udpSocket;
-
     private Map<Byte, User> users = new ConcurrentHashMap<Byte, User>();
-
     private Collection<UserBullet> bulletQueue = new ConcurrentLinkedQueue<UserBullet>();
-
     // Timer state received from server
     private volatile int remainingSeconds = 60;
     private volatile boolean matchOver = false;
-
     // Bomb defusal state received from server
     private volatile int bombState = 0;
     private volatile float bombX, bombY;
     private volatile int bombTimer = -1;
     private volatile int plantProgress = 0;
     private volatile int defuseProgress = 0;
-
     // Round results
     private volatile int tWins = 0;
     private volatile int ctWins = 0;
     private volatile String roundResultMsg = "";
     private volatile long roundResultTime = 0;
-
     public Client(String hostname, int port) {
         try {
             udpSocket = new DatagramSocket();
@@ -57,6 +42,22 @@ public class Client {
         } catch (SocketException | UnknownHostException e) {
             e.printStackTrace();
         }
+    }
+
+    public static byte[] intToByteArray(int value) {
+        return new byte[]{
+                (byte) (value >>> 24),
+                (byte) (value >>> 16),
+                (byte) (value >>> 8),
+                (byte) value};
+    }
+
+    public byte getMyId() {
+        if (myId == 0) {
+            askId();
+            return 0;
+        }
+        return myId;
     }
 
     public void start() {
@@ -145,16 +146,45 @@ public class Client {
         }
     }
 
-    public int getBombState() { return bombState; }
-    public float getBombX() { return bombX; }
-    public float getBombY() { return bombY; }
-    public int getBombTimer() { return bombTimer; }
-    public int getPlantProgress() { return plantProgress; }
-    public int getDefuseProgress() { return defuseProgress; }
-    public int getTWins() { return tWins; }
-    public int getCTWins() { return ctWins; }
-    public String getRoundResultMsg() { return roundResultMsg; }
-    public long getRoundResultTime() { return roundResultTime; }
+    public int getBombState() {
+        return bombState;
+    }
+
+    public float getBombX() {
+        return bombX;
+    }
+
+    public float getBombY() {
+        return bombY;
+    }
+
+    public int getBombTimer() {
+        return bombTimer;
+    }
+
+    public int getPlantProgress() {
+        return plantProgress;
+    }
+
+    public int getDefuseProgress() {
+        return defuseProgress;
+    }
+
+    public int getTWins() {
+        return tWins;
+    }
+
+    public int getCTWins() {
+        return ctWins;
+    }
+
+    public String getRoundResultMsg() {
+        return roundResultMsg;
+    }
+
+    public long getRoundResultTime() {
+        return roundResultTime;
+    }
 
     private void restartGame(DatagramPacket packet) {
         Game.getInstance().getPlayer().isDead = false;
@@ -166,7 +196,7 @@ public class Client {
         myId = packet.getData()[1];
     }
 
-    public void askId(){
+    public void askId() {
         try {
             udpSocket.send(new DatagramPacket(new byte[]{4}, 1, udpSocket.getInetAddress(), udpSocket.getPort()));
         } catch (IOException e) {
@@ -176,23 +206,23 @@ public class Client {
 
     private void positionBullet(DatagramPacket packet) {
         byte[] data = packet.getData();
-        float x = ByteBuffer.wrap(data,2,4).getFloat();
+        float x = ByteBuffer.wrap(data, 2, 4).getFloat();
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
         bulletQueue.add(new UserBullet(x, y).addUserId(data[1]));
     }
 
-    public void sendBullet(Bullet b){
-        byte[] data = new byte[2+4+4+4+4];
+    public void sendBullet(Bullet b) {
+        byte[] data = new byte[2 + 4 + 4 + 4 + 4];
         data[0] = 3;
         byte[] posX = ByteBuffer.allocate(4).putFloat(b.getPosX()).array();
         byte[] posY = ByteBuffer.allocate(4).putFloat(b.getPosY()).array();
         byte[] vecX = ByteBuffer.allocate(4).putFloat(b.getVecX()).array();
         byte[] vecY = ByteBuffer.allocate(4).putFloat(b.getVecY()).array();
         for (int i = 0; i < 4; i++) {
-            data[i+2] = posX[i];
-            data[i+6] = posY[i];
-            data[i+10] = vecX[i];
-            data[i+14] = vecY[i];
+            data[i + 2] = posX[i];
+            data[i + 6] = posY[i];
+            data[i + 10] = vecX[i];
+            data[i + 14] = vecY[i];
         }
         DatagramPacket packet = new DatagramPacket(data, data.length);
         try {
@@ -205,7 +235,7 @@ public class Client {
 
     private void updateBullet(DatagramPacket packet) {
         byte[] data = packet.getData();
-        float x = ByteBuffer.wrap(data,2,4).getFloat();
+        float x = ByteBuffer.wrap(data, 2, 4).getFloat();
         float y = ByteBuffer.wrap(data, 6, 4).getFloat();
         System.out.println("client received bullet ");
         bulletQueue.add(new UserBullet(x, y));
@@ -222,7 +252,6 @@ public class Client {
             }
         }
     }
-
 
     public void tick() {
         cleanUp();
@@ -271,7 +300,7 @@ public class Client {
         byte[] nameArray = username.getBytes();
         byte[] finalData = new byte[2 + xArray.length + yArray.length + nameArray.length];
         finalData[0] = 1; //Code for updating positions
-        int index = 2 ;
+        int index = 2;
         for (int i = 0; i < xArray.length; i++)
             finalData[index++] = xArray[i];
         for (int i = 0; i < yArray.length; i++)
@@ -285,14 +314,6 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public static byte[] intToByteArray(int value) {
-        return new byte[]{
-                (byte) (value >>> 24),
-                (byte) (value >>> 16),
-                (byte) (value >>> 8),
-                (byte) value};
     }
 
 }
