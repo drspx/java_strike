@@ -83,8 +83,9 @@ public final class GameRenderer {
     }
 
     public static void enableAntialiasing(Graphics2D g2) {
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        // Disable antialiasing for performance
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
     }
 
     public static void drawBackground(Graphics2D g2, int w, int h) {
@@ -176,23 +177,10 @@ public final class GameRenderer {
         g2.draw(tmpLine);
         g2.setStroke(STROKE_1);
 
-        // Body
+        // Body - no outline or dot for performance
         tmpEllipse.setFrame(cx - BODY_RADIUS, cy - BODY_RADIUS, BODY_RADIUS * 2, BODY_RADIUS * 2);
         g2.setColor(bodyColor);
         g2.fill(tmpEllipse);
-
-        // Outline
-        g2.setColor(isLocal ? Color.WHITE : PLAYER_OUTLINE);
-        g2.setStroke(STROKE_1_5);
-        g2.draw(tmpEllipse);
-        g2.setStroke(STROKE_1);
-
-        // Local player dot
-        if (isLocal) {
-            g2.setColor(PLAYER_CENTER_DOT);
-            tmpEllipse.setFrame(cx - 2, cy - 2, 4, 4);
-            g2.fill(tmpEllipse);
-        }
     }
 
     // --- Obstacles ---
@@ -202,25 +190,19 @@ public final class GameRenderer {
         for (Obstacle obs : obstacles) {
             int ox = (int) obs.getPosX(), oy = (int) obs.getPosY();
             int ow = (int) obs.getWidth(), oh = (int) obs.getHeight();
-
-            g2.setColor(OBS_SHADOW);
-            g2.fillRoundRect(ox + 2, oy + 2, ow, oh, 4, 4);
             g2.setColor(OBS_FILL);
-            g2.fillRoundRect(ox, oy, ow, oh, 4, 4);
+            g2.fillRect(ox, oy, ow, oh);
             g2.setColor(OBS_BORDER);
-            g2.drawRoundRect(ox, oy, ow, oh, 4, 4);
+            g2.drawRect(ox, oy, ow, oh);
         }
 
         for (MovingObstacle mo : movingObstacles) {
             int mx = (int) mo.getPosX(), my = (int) mo.getPosY();
             int mw = (int) mo.getWidth(), mh = (int) mo.getHeight();
-
-            g2.setColor(MOB_GLOW);
-            g2.fillRoundRect(mx - 2, my - 2, mw + 4, mh + 4, 6, 6);
             g2.setColor(MOB_FILL);
-            g2.fillRoundRect(mx, my, mw, mh, 4, 4);
+            g2.fillRect(mx, my, mw, mh);
             g2.setColor(MOB_BORDER);
-            g2.drawRoundRect(mx, my, mw, mh, 4, 4);
+            g2.drawRect(mx, my, mw, mh);
         }
     }
 
@@ -232,7 +214,7 @@ public final class GameRenderer {
         while (it.hasNext()) {
             UserBullet b = it.next();
             b.hasBeenDrawn();
-            g2.fillOval((int) b.getPosX(), (int) b.getPosY(), 5, 5);
+            g2.fillRect((int) b.getPosX(), (int) b.getPosY(), 5, 5);
             it.remove();
         }
     }
@@ -243,10 +225,6 @@ public final class GameRenderer {
         float cx = user.getPosX() + player.getWidth() / 2;
         float cy = user.getPosY() + player.getHeight() / 2;
         int s = 8;
-
-        g2.setColor(DEAD_GLOW);
-        tmpEllipse.setFrame(cx - s - 3, cy - s - 3, (s + 3) * 2, (s + 3) * 2);
-        g2.fill(tmpEllipse);
 
         g2.setColor(DEAD_X);
         g2.setStroke(STROKE_3_ROUND);
@@ -265,7 +243,7 @@ public final class GameRenderer {
         int panelHeight = headerHeight + rowHeight * Math.max(users.size(), 1) + 6;
 
         g2.setColor(HUD_BG);
-        g2.fillRoundRect(panelX, panelY, 220, panelHeight, 8, 8);
+        g2.fillRect(panelX, panelY, 220, panelHeight);
 
         g2.setColor(Color.WHITE);
         g2.setFont(FONT_SCOREBOARD_HEADER);
@@ -298,7 +276,7 @@ public final class GameRenderer {
         int x = (Launcher.width - textWidth) / 2, y = 30;
 
         g2.setColor(HUD_BG);
-        g2.fillRoundRect(x - 12, y - 22, textWidth + 24, 32, 10, 10);
+        g2.fillRect(x - 12, y - 22, textWidth + 24, 32);
         g2.setColor(seconds <= 10 && !over ? Color.RED : Color.WHITE);
         g2.drawString(timeStr, x, y);
 
@@ -321,19 +299,6 @@ public final class GameRenderer {
         g2.setFont(FONT_BOMB_LABEL);
         g2.setColor(BOMB_SITE_LABEL);
         g2.drawString("A", sx + sw / 2 - 8, sy + sh / 2 + 10);
-
-        int bState = isServer ? bombState.getState() : client.getBombState();
-        float bx = isServer ? bombState.getBombX() : client.getBombX();
-        float by = isServer ? bombState.getBombY() : client.getBombY();
-        if (bState >= BombState.STATE_PLANTED && bState <= BombState.STATE_DEFUSING) {
-            boolean blink = (System.currentTimeMillis() / 300) % 2 == 0;
-            g2.setColor(blink ? Color.RED : BOMB_HUD_BG);
-            tmpEllipse.setFrame(bx - 7, by - 7, 14, 14);
-            g2.fill(tmpEllipse);
-            g2.setColor(Color.WHITE);
-            g2.setFont(FONT_BOMB_SMALL);
-            g2.drawString("B", (int) bx - 4, (int) by + 4);
-        }
     }
 
     public static void drawBombHUD(Graphics2D g2, boolean isServer, BombState bombState,
@@ -353,7 +318,7 @@ public final class GameRenderer {
         int x = (Launcher.width - textWidth) / 2, y = 28;
 
         g2.setColor(HUD_BG);
-        g2.fillRoundRect(x - 12, y - 20, textWidth + 24, 30, 10, 10);
+        g2.fillRect(x - 12, y - 20, textWidth + 24, 30);
         g2.setColor(Color.WHITE);
         g2.drawString(scoreStr, x, y);
 
@@ -371,7 +336,7 @@ public final class GameRenderer {
             x = (Launcher.width - textWidth) / 2;
             y = 75;
             g2.setColor(BOMB_HUD_BG);
-            g2.fillRoundRect(x - 10, y - 18, textWidth + 20, 26, 8, 8);
+            g2.fillRect(x - 10, y - 18, textWidth + 20, 26);
             g2.setColor(Color.WHITE);
             g2.drawString(btStr, x, y);
         }
@@ -410,7 +375,7 @@ public final class GameRenderer {
         int x = (Launcher.width - barW) / 2, y = Launcher.height - 80;
 
         g2.setColor(HUD_BG);
-        g2.fillRoundRect(x - 4, y - 4, barW + 8, barH + 8, 6, 6);
+        g2.fillRect(x - 4, y - 4, barW + 8, barH + 8);
         g2.setColor(Color.DARK_GRAY);
         g2.fillRect(x, y, barW, barH);
         g2.setColor(color);
@@ -426,7 +391,7 @@ public final class GameRenderer {
         int x = (Launcher.width - textWidth) / 2, y = Launcher.height / 2;
 
         g2.setColor(HUD_BG_DARK);
-        g2.fillRoundRect(x - 20, y - 35, textWidth + 40, 50, 12, 12);
+        g2.fillRect(x - 20, y - 35, textWidth + 40, 50);
         g2.setColor(Color.YELLOW);
         g2.drawString(message, x, y);
     }
