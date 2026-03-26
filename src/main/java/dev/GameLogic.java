@@ -61,6 +61,46 @@ public final class GameLogic {
             }
             if (hitObstacle) continue;
         }
+
+        // Check player collision with obstacles
+        checkPlayerObstacleCollision(server, obstacles);
+    }
+
+    public static void checkPlayerObstacleCollision(Server server, List<Obstacle> obstacles) {
+        for (User user : server.getUsers()) {
+            if (user.isDead) continue;
+            for (Obstacle obs : obstacles) {
+                if (collides(user, obs)) {
+                    // Push player back to spawn
+                    if (user.team == 0) {
+                        user.setPosX(50);
+                        user.setPosY(400);
+                    } else {
+                        user.setPosX(Launcher.width - 100);
+                        user.setPosY(400);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private static boolean collides(User user, Obstacle obstacle) {
+        float userX = user.getPosX();
+        float userY = user.getPosY();
+        float userW = user.getWidth();
+        float userH = user.getHeight();
+        
+        float obsX = obstacle.getPosX();
+        float obsY = obstacle.getPosY();
+        float obsW = obstacle.getWidth();
+        float obsH = obstacle.getHeight();
+        
+        // Simple AABB collision detection
+        return userX < obsX + obsW &&
+               userX + userW > obsX &&
+               userY < obsY + obsH &&
+               userY + userH > obsY;
     }
 
     public static void checkMovingObstaclePlayerCollision(List<MovingObstacle> movingObstacles, Server server) {
