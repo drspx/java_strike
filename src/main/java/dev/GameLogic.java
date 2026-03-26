@@ -85,6 +85,33 @@ public final class GameLogic {
         }
     }
 
+    public static boolean playerHitObstacle(Player player, List<Obstacle> obstacles) {
+        for (Obstacle obs : obstacles) {
+            if (collides(player, obs)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean collides(Player player, Obstacle obstacle) {
+        float playerX = player.getPosX();
+        float playerY = player.getPosY();
+        float playerW = Player.width;
+        float playerH = Player.height;
+        
+        float obsX = obstacle.getPosX();
+        float obsY = obstacle.getPosY();
+        float obsW = obstacle.getWidth();
+        float obsH = obstacle.getHeight();
+        
+        // Simple AABB collision detection
+        return playerX < obsX + obsW &&
+               playerX + playerW > obsX &&
+               playerY < obsY + obsH &&
+               playerY + playerH > obsY;
+    }
+
     private static boolean collides(User user, Obstacle obstacle) {
         float userX = user.getPosX();
         float userY = user.getPosY();

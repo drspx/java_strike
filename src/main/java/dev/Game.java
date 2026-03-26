@@ -120,11 +120,23 @@ public class Game implements Runnable {
 
     private void tick() {
         if (display.getKeyboard().escape) System.exit(0);
+        
         if (!player.isDead) {
+            // Check collision BEFORE moving
+            float oldPosX = player.getPosX();
+            float oldPosY = player.getPosY();
+            
             if (display.getKeyboard().up) player.incrementPosY(-Player.speed);
             if (display.getKeyboard().down) player.incrementPosY(Player.speed);
             if (display.getKeyboard().left) player.incrementPosX(-Player.speed);
             if (display.getKeyboard().right) player.incrementPosX(Player.speed);
+            
+            // Revert position if we hit an obstacle
+            if (GameLogic.playerHitObstacle(player, obstacles)) {
+                player.setPosX(oldPosX);
+                player.setPosY(oldPosY);
+            }
+            
             if (display.getMouse().leftClick) {
                 display.getMouse().leftClick = false;
                 Bullet b = new Bullet(player, display.getMouse().point.x, display.getMouse().point.y);
@@ -149,6 +161,7 @@ public class Game implements Runnable {
                 GameLogic.checkObjectCollision(server, obstacles, movingObstacles);
             }
             GameLogic.checkMovingObstaclePlayerCollision(movingObstacles, server);
+            GameLogic.checkPlayerObstacleCollision(server, obstacles);
             server.broadCastBullets();
             server.tick();
 
