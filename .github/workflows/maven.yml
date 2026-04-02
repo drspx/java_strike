@@ -10,17 +10,43 @@ jobs:
     permissions:
       contents: write
 
+    strategy:
+      matrix:
+        java: [17, 21, 25, 26]
+
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up JDK 25
+    - name: Set up Liberica JDK ${{ matrix.java }}
       uses: actions/setup-java@v4
       with:
-        java-version: '25'
-        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+        distribution: 'liberica'
 
     - name: Build with Maven
-      run: mvn package
+      run: mvn -B package
+
+    - name: Rename artifact
+      run: |
+        mv target/*jar-with-dependencies.jar target/app-java${{ matrix.java }}.jar
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-java${{ matrix.java }}
+        path: target/app-java${{ matrix.java }}.jar
+
+  release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
 
     - name: Generate tag name
       id: tag
@@ -31,6 +57,5 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.tag }}
         name: Release ${{ steps.tag.outputs.tag }}
-        draft: false
-        prerelease: false
-        files: target/java_strike-1.0-SNAPSHOT-jar-with-dependencies.jar
+        files: artifacts/**/*.jar
+
