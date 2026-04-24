@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static dev.network.NetValues.PACKET_FOG_OF_WAR;
 import static dev.network.NetValues.TIMEOUT;
 
 public class Server {
@@ -23,6 +24,8 @@ public class Server {
     private List<UserBullet> userBullets = new CopyOnWriteArrayList<>();
     // Bomb action listener — Game sets this to handle plant/defuse requests
     private BombActionListener bombActionListener;
+    // Fog of war toggle
+    private boolean fogOfWarEnabled = false;
 
     public Server(int udpPort) {
         idIncrementer = (byte) (10 + (Math.random() * 20.0));
@@ -49,6 +52,8 @@ public class Server {
         User u = new User(packet.getAddress(), username, idIncrementer++, x, y);
         u.setPort(packet.getPort());
         clients.add(u);
+        // Send current fog of war state to new client
+        broadcastFogOfWar();
     }
 
     private void updatePosition(DatagramPacket packet) { // position of players
@@ -385,6 +390,32 @@ public class Server {
         }
         Game.getInstance().getDisplay().getKeyboard().restart = false;
 
+    }
+
+    public void setFogOfWarEnabled(boolean enabled) {
+        this.fogOfWarEnabled = enabled;
+        broadcastFogOfWar();
+    }
+
+    public void toggleFogOfWar() {
+        this.fogOfWarEnabled = !this.fogOfWarEnabled;
+        broadcastFogOfWar();
+    }
+
+    public boolean isFogOfWarEnabled() {
+        return fogOfWarEnabled;
+    }
+
+    private void broadcastFogOfWar() {
+        byte[] data = new byte[2];
+        data[0] = PACKET_FOG_OF_WAR;
+        data[1] = (byte) (fogOfWarEnabled ? 1 : 0);
+        for (User client : clients) {
+            try {
+                udpSocket.send(new DatagramPacket(data, data.length, client.getAddress(), client.getPort()));
+            } catch (IOException e) {
+                e.printStackTrace();            }
+        }
     }
 
     public interface BombActionListener {

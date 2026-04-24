@@ -16,6 +16,9 @@ public final class GameRenderer {
     // Player visual constants
     private static final int BODY_RADIUS = 8;
     private static final int GUN_LENGTH = 14;
+    // Fog of war visibility radius
+    private static final float FOG_RADIUS = 300;
+    private static final float FOG_RADIUS_SQ = FOG_RADIUS * FOG_RADIUS;
     // Pre-cached colors — avoids per-frame allocations
     private static final Color BG_COLOR = new Color(30, 32, 36);
     private static final Color GRID_COLOR = new Color(45, 48, 54);
@@ -54,6 +57,8 @@ public final class GameRenderer {
     private static final Color SCORE_CT = new Color(100, 160, 255);
     private static final Color CT_HUD = new Color(50, 120, 220);
     private static final Color FPS_COLOR = new Color(150, 150, 150);
+    // Fog of war overlay color
+    private static final Color FOG_COLOR = new Color(10, 10, 15, 180);
     // Pre-cached fonts
     private static final Font FONT_NAME = new Font("SansSerif", Font.BOLD, 11);
     private static final Font FONT_SCOREBOARD_HEADER = new Font("Monospaced", Font.BOLD, 13);
@@ -128,23 +133,33 @@ public final class GameRenderer {
 
     public static byte drawRemotePlayers(Graphics2D g2, Client client, Player player, GameMode gameMode) {
         byte myTeam = -1;
+        boolean fogEnabled = client.isFogOfWarEnabled();
+        float px = player.getPosX() + player.getWidth() / 2;
+        float py = player.getPosY() + player.getHeight() / 2;
+
         for (User user : client.getUsers().values()) {
             if (user.getId() != client.getMyId()) {
                 if (!user.isDead) {
                     float cx = user.getPosX() + player.getWidth() / 2;
                     float cy = user.getPosY() + player.getHeight() / 2;
-                    drawPlayerFigure(g2, cx, cy, 0, getTeamColor(user.team, false, gameMode), false);
-                    // Username
-                    g2.setFont(FONT_NAME);
-                    String name = user.getUsername();
-                    if (name.length() > 12) name = name.substring(0, 12);
-                    int tw = g2.getFontMetrics().stringWidth(name);
-                    g2.setColor(NAME_SHADOW);
-                    g2.drawString(name, (int) cx - tw / 2 + 1, (int) cy - BODY_RADIUS - 5);
-                    g2.setColor(Color.WHITE);
-                    g2.drawString(name, (int) cx - tw / 2, (int) cy - BODY_RADIUS - 6);
+                    if (!fogEnabled || distSq(px, py, cx, cy) <= FOG_RADIUS_SQ) {
+                        drawPlayerFigure(g2, cx, cy, 0, getTeamColor(user.team, false, gameMode), false);
+                        // Username
+                        g2.setFont(FONT_NAME);
+                        String name = user.getUsername();
+                        if (name.length() > 12) name = name.substring(0, 12);
+                        int tw = g2.getFontMetrics().stringWidth(name);
+                        g2.setColor(NAME_SHADOW);
+                        g2.drawString(name, (int) cx - tw / 2 + 1, (int) cy - BODY_RADIUS - 5);
+                        g2.setColor(Color.WHITE);
+                        g2.drawString(name, (int) cx - tw / 2, (int) cy - BODY_RADIUS - 6);
+                    }
                 } else {
-                    drawDeadUser(g2, user, player);
+                    float cx = user.getPosX() + player.getWidth() / 2;
+                    float cy = user.getPosY() + player.getHeight() / 2;
+                    if (!fogEnabled || distSq(px, py, cx, cy) <= FOG_RADIUS_SQ) {
+                        drawDeadUser(g2, user, player);
+                    }
                 }
             } else {
                 myTeam = user.team;
@@ -186,10 +201,16 @@ public final class GameRenderer {
     // --- Obstacles ---
 
     public static void drawObstacles(Graphics2D g2, List<Obstacle> obstacles,
-                                     List<MovingObstacle> movingObstacles) {
+                                     List<MovingObstacle> movingObstacles,
+                                     Client client, Player player) {
+        boolean fogEnabled = client.isFogOfWarEnabled();
+        float px = player.getPosX() + player.getWidth() / 2;
+        float py = player.getPosY() + player.getHeight() / 2;
+
         for (Obstacle obs : obstacles) {
             int ox = (int) obs.getPosX(), oy = (int) obs.getPosY();
             int ow = (int) obs.getWidth(), oh = (int) obs.getHeight();
+            // Static obstacles always visible
             g2.setColor(OBS_FILL);
             g2.fillRect(ox, oy, ow, oh);
             g2.setColor(OBS_BORDER);
@@ -197,24 +218,35 @@ public final class GameRenderer {
         }
 
         for (MovingObstacle mo : movingObstacles) {
-            int mx = (int) mo.getPosX(), my = (int) mo.getPosY();
-            int mw = (int) mo.getWidth(), mh = (int) mo.getHeight();
-            g2.setColor(MOB_FILL);
-            g2.fillRect(mx, my, mw, mh);
-            g2.setColor(MOB_BORDER);
-            g2.drawRect(mx, my, mw, mh);
+            float mx = mo.getPosX() + mo.getWidth() / 2;
+            float my = mo.getPosY() + mo.getHeight() / 2;
+            if (!fogEnabled || distSq(px, py, mx, my) <= FOG_RADIUS_SQ) {
+                int mxx = (int) mo.getPosX(), myy = (int) mo.getPosY();
+                int mw = (int) mo.getWidth(), mh = (int) mo.getHeight();
+                g2.setColor(MOB_FILL);
+                g2.fillRect(mxx, myy, mw, mh);
+                g2.setColor(MOB_BORDER);
+                g2.drawRect(mxx, myy, mw, mh);
+            }
         }
     }
 
     // --- Bullets ---
 
-    public static void drawBullets(Graphics2D g2, Collection<UserBullet> bulletQueue) {
+    public static void drawBullets(Graphics2D g2, Collection<UserBullet> bulletQueue,
+                                   Client client, Player player) {
+        boolean fogEnabled = client.isFogOfWarEnabled();
+        float px = player.getPosX() + player.getWidth() / 2;
+        float py = player.getPosY() + player.getHeight() / 2;
+
         Iterator<UserBullet> it = bulletQueue.iterator();
         g2.setColor(BULLET_CORE);
         while (it.hasNext()) {
             UserBullet b = it.next();
-            b.hasBeenDrawn();
-            g2.fillRect((int) b.getPosX(), (int) b.getPosY(), 5, 5);
+            if (!fogEnabled || distSq(px, py, b.getPosX() + 2.5f, b.getPosY() + 2.5f) <= FOG_RADIUS_SQ) {
+                b.hasBeenDrawn();
+                g2.fillRect((int) b.getPosX(), (int) b.getPosY(), 5, 5);
+            }
             it.remove();
         }
     }
@@ -361,7 +393,46 @@ public final class GameRenderer {
         g2.drawString("FPS " + fps, Launcher.width - 60, Launcher.height - 10);
     }
 
+    // --- Fog of war overlay ---
+
+    public static void drawFogOverlay(Graphics2D g2, Client client, Player player, int w, int h) {
+        if (!client.isFogOfWarEnabled()) return;
+
+        float px = player.getPosX() + player.getWidth() / 2;
+        float py = player.getPosY() + player.getHeight() / 2;
+
+        // Draw dark overlay covering entire screen
+        g2.setColor(FOG_COLOR);
+        g2.fillRect(0, 0, w, h);
+
+        // Cut out a circle around the player (draw background color to "erase" fog)
+        g2.setColor(BG_COLOR);
+        g2.fillOval(
+                (int) (px - FOG_RADIUS), (int) (py - FOG_RADIUS),
+                (int) (FOG_RADIUS * 2), (int) (FOG_RADIUS * 2)
+        );
+
+        // Also cut out circles around visible remote players
+        for (User user : client.getUsers().values()) {
+            if (user.getId() == client.getMyId()) continue;
+            float cx = user.getPosX() + player.getWidth() / 2;
+            float cy = user.getPosY() + player.getHeight() / 2;
+            if (distSq(px, py, cx, cy) <= FOG_RADIUS_SQ) {
+                g2.fillOval(
+                        (int) (cx - FOG_RADIUS), (int) (cy - FOG_RADIUS),
+                        (int) (FOG_RADIUS * 2), (int) (FOG_RADIUS * 2)
+                );
+            }
+        }
+    }
+
     // --- Private helpers ---
+
+    private static float distSq(float x1, float y1, float x2, float y2) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        return dx * dx + dy * dy;
+    }
 
     private static Color getTeamColor(byte team, boolean isLocal, GameMode gameMode) {
         if (gameMode != GameMode.BOMB_DEFUSAL) return isLocal ? PLAYER_GREEN : PLAYER_GRAY;

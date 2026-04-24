@@ -156,6 +156,12 @@ public class Game implements Runnable {
             mo.tick();
         }
 
+        // Fog of war toggle (host only, 'F' key)
+        if (isServer && display.getKeyboard().fogOfWarToggle) {
+            display.getKeyboard().fogOfWarToggle = false;
+            server.toggleFogOfWar();
+        }
+
         if (isServer) {
             for (int i = 1; i < 5; i++) {
                 GameLogic.checkObjectCollision(server, obstacles, movingObstacles);
@@ -266,13 +272,16 @@ public class Game implements Runnable {
             GameRenderer.drawBombSite(g2, bombState, isServer, client);
         }
 
-        GameRenderer.drawObstacles(g2, obstacles, movingObstacles);
-        GameRenderer.drawBullets(g2, client.getBulletQueue());
+        GameRenderer.drawObstacles(g2, obstacles, movingObstacles, client, player);
+        GameRenderer.drawBullets(g2, client.getBulletQueue(), client, player);
         GameRenderer.drawLocalPlayer(g2, player, myTeam, gameMode, display.getMouse().point);
         GameRenderer.drawAimLine(g2, player, display.getMouse().point);
         myTeam = GameRenderer.drawRemotePlayers(g2, client, player, gameMode);
 
         GameRenderer.drawScoreboard(g2, client, gameMode);
+
+        // Fog of war overlay
+        GameRenderer.drawFogOverlay(g2, client, player, display.getCanvas().getWidth(), display.getCanvas().getHeight());
 
         if (gameMode == GameMode.DEATHMATCH) {
             int seconds = isServer ? remainingSeconds : client.getRemainingSeconds();
@@ -286,6 +295,13 @@ public class Game implements Runnable {
         }
 
         GameRenderer.drawFPS(g2, fps);
+
+        // Fog of war toggle indicator
+        if (client.isFogOfWarEnabled()) {
+            g2.setFont(new Font("Monospaced", Font.BOLD, 11));
+            g2.setColor(new Color(255, 100, 100));
+            g2.drawString("[FOG OF WAR: ON] Press F to disable", 10, Launcher.height - 10);
+        }
 
         bs.show();
         g2.dispose();

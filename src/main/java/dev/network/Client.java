@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static dev.network.NetValues.PACKET_FOG_OF_WAR;
 import static dev.network.NetValues.TIMEOUT;
 
 public class Client {
@@ -33,6 +34,8 @@ public class Client {
     private volatile int ctWins = 0;
     private volatile String roundResultMsg = "";
     private volatile long roundResultTime = 0;
+    // Fog of war
+    private volatile boolean fogOfWarEnabled = false;
     public Client(String hostname, int port) {
         try {
             udpSocket = new DatagramSocket();
@@ -93,6 +96,9 @@ public class Client {
                                 break;
                             case 12:
                                 receiveRoundResult(packet);
+                                break;
+                            case 13:
+                                receiveFogOfWar(packet);
                                 break;
                         }
 
@@ -184,6 +190,15 @@ public class Client {
 
     public long getRoundResultTime() {
         return roundResultTime;
+    }
+
+    private void receiveFogOfWar(DatagramPacket packet) {
+        byte[] data = packet.getData();
+        fogOfWarEnabled = data[1] == 1;
+    }
+
+    public boolean isFogOfWarEnabled() {
+        return fogOfWarEnabled;
     }
 
     private void restartGame(DatagramPacket packet) {
@@ -292,6 +307,17 @@ public class Client {
 
     public Map<Byte, User> getUsers() {
         return users;
+    }
+
+    public void broadcastFogOfWar(boolean enabled) {
+        byte[] data = new byte[2];
+        data[0] = PACKET_FOG_OF_WAR;
+        data[1] = (byte) (enabled ? 1 : 0);
+        try {
+            udpSocket.send(new DatagramPacket(data, data.length));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void sendPosition(String username, float x, float y) {
