@@ -29,11 +29,9 @@ public class Display {
 
     private void createDisplay() {
         frame = new JFrame(title);
-        frame.setSize(width, height);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
         frame.addKeyListener(keyboard);
         frame.setFocusable(true);
         frame.addWindowListener(new WindowListener() {
@@ -81,8 +79,11 @@ public class Display {
         canvas.addMouseMotionListener(mouse);
         canvas.setFocusable(false);
 
-        frame.add(canvas);
+        frame.add(canvas, java.awt.BorderLayout.CENTER);
         frame.pack();
+        canvas.setSize(frame.getContentPane().getSize());
+        canvas.setLocation(0, 0);
+        frame.setVisible(true);
 
     }
 
